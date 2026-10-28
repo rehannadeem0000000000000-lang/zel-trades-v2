@@ -9,26 +9,44 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "21"
-      - uses: android-actions/setup-android@v3
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
         with:
-          packages: ""
-      - run: |
+          packages: ''
+
+      - name: Install SDK packages
+        run: |
           yes | sdkmanager --licenses > /dev/null || true
           sdkmanager "platforms;android-36" "build-tools;36.0.0" "platform-tools"
-      - run: npm install
-      - working-directory: android
+
+      - name: Install Node dependencies
+        run: npm install
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.14.3'
+
+      - name: Build APK
+        working-directory: android
+        run: gradle :app:assembleDebug --no-daemon
+
+      - name: Show built APK
         run: |
-          curl -sL -o /tmp/gradle.zip https://services.gradle.org/distributions/gradle-8.14.3-bin.zip
-          unzip -q /tmp/gradle.zip -d /tmp
-          export PATH=/tmp/gradle-8.14.3/bin:$PATH
-          gradle :app:assembleDebug --no-daemon
-      - run: find android/app/build/outputs -name "*.apk" -exec ls -lh {} \;
-      - uses: actions/upload-artifact@v4
+          find android/app/build/outputs -name "*.apk" -type f -exec ls -lh {} \;
+          unzip -l android/app/build/outputs/apk/debug/app-debug.apk 2>/dev/null | head -20
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
         with:
           name: zel-trades-apk
           path: android/app/build/outputs/apk/debug/*.apk
